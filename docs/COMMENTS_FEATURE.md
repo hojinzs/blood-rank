@@ -13,7 +13,7 @@
 ### 핵심 가치
 - "O형인데 A형 꼴찌 축하해 ㅋㅋ" 같은 크로스 혈액형 댓글로 경쟁심 자극
 - 로그인 없이 닉네임 + 혈액형만으로 참여 가능 (Supabase Anonymous Auth)
-- 50자 제한으로 가볍고 빠른 참여
+- 500자 제한으로 가볍고 빠른 참여
 
 ---
 
@@ -61,8 +61,22 @@
 | id | uuid (PK) | |
 | user_id | uuid (FK → auth.users.id) | 작성자 |
 | target_blood | text | 대상 혈액형 카드 (A/B/O/AB) |
-| content | text (1-50자) | 한마디 내용 |
+| content | text (1-500자) | 한마디 내용 |
+| likes | int (default 0) | 좋아요 수 (인기 댓글 정렬용) |
 | created_at | timestamptz | 작성 시각 |
+
+### `comment_likes` 테이블 (좋아요 중복 방지)
+| 컬럼 | 타입 | 설명 |
+|-------|------|------|
+| comment_id | uuid (FK → comments.id) | 대상 댓글 |
+| user_id | uuid (FK → auth.users.id) | 좋아요 누른 유저 |
+| created_at | timestamptz | |
+| | PK: (comment_id, user_id) | 유저당 댓글당 1회 |
+
+### 댓글 TTL
+- 댓글은 **7일 후 자동 삭제**
+- Supabase `pg_cron` 또는 Vercel Cron에서 매일 `DELETE FROM comments WHERE created_at < now() - interval '7 days'` 실행
+- 관련 comment_likes도 CASCADE 삭제
 
 ### RLS 정책
 
@@ -100,11 +114,12 @@ Anonymous Auth를 사용하면 RLS가 유저를 식별하므로, 대부분의 CR
 | 댓글 조회 | `supabase.from('comments').select('*, profiles(*)')` | JOIN으로 닉네임/혈액형 포함 |
 | 댓글 작성 | `supabase.from('comments').insert()` | RLS: 인증 유저만 |
 | 댓글 삭제 | `supabase.from('comments').delete()` | RLS: 본인만 |
+| 좋아요 토글 | `supabase.from('comment_likes').upsert()` / `.delete()` | RLS: 본인만 |
 
 ### API Route (서버)
 | 엔드포인트 | 용도 |
 |------------|------|
-| `POST /api/comments/report` | 신고 접수 (선택적, 추후) |
+| `POST /api/cron/cleanup-comments` | 7일 지난 댓글 삭제 (Vercel Cron) |
 
 ---
 
@@ -123,9 +138,13 @@ Anonymous Auth를 사용하면 RLS가 유저를 식별하므로, 대부분의 CR
 
 ### CommentSection
 - 각 혈액형 카드 안에 삽입
-- 최근 댓글 목록 (1위 카드: 5개, 2-4위 카드: 3개) + "더 보기"
+- **정렬 구조:**
+  1. 상단: 인기 댓글 5개 (likes 높은 순, 최소 1 like 이상)
+  2. 하단: 최신순 댓글 전체 표시
+- 모바일에서도 모든 댓글 표시 (스크롤 제한 없음)
 - 하단에 댓글 입력창 (글자수 카운터 포함)
 - 본인 댓글에 삭제 버튼 표시
+- 각 댓글에 좋아요 버튼 (♡/♥ 토글)
 
 ### CommentBubble
 - 개별 댓글: `[A] 닉네임: 메시지 내용 · 3분 전`
@@ -145,11 +164,11 @@ Anonymous Auth를 사용하면 RLS가 유저를 식별하므로, 대부분의 CR
 ### 콘텐츠 필터링
 - URL 포함 차단 (`http://`, `www.`)
 - 반복문자 차단 (예: "ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ...")
-- 기본 욕설 필터 (한국어)
+- **비속어 필터: 하드코딩된 한국어 욕설 사전** (`lib/moderation.ts`에 배열로 관리)
 - 공백만 있는 댓글 차단
 
 ### DB 레벨
-- CHECK 제약조건: content 1-50자, nickname 1-12자
+- CHECK 제약조건: content 1-500자, nickname 1-12자
 - RLS: `auth.uid()` 기반 정책으로 사칭 불가
 
 ---
@@ -168,8 +187,9 @@ Anonymous Auth를 사용하면 RLS가 유저를 식별하므로, 대부분의 CR
 ```
 새로 만들 파일:
 ├── supabase/migrations/20260311000001_create_comments_tables.sql
-├── lib/supabase-browser.ts           → 브라우저용 Supabase 클라이언트 (싱글톤)
-├── components/AuthProvider.tsx        → Supabase Auth Context
+├── app/api/cron/cleanup-comments/route.ts  → 7일 TTL 정리 크론
+├── lib/supabase-browser.ts                 → 브라우저용 Supabase 클라이언트 (싱글톤)
+├── components/AuthProvider.tsx              → Supabase Auth Context
 ├── components/GuestRegistrationModal.tsx
 ├── components/CommentSection.tsx
 ├── components/CommentBubble.tsx
@@ -178,7 +198,8 @@ Anonymous Auth를 사용하면 RLS가 유저를 식별하므로, 대부분의 CR
 
 수정할 파일:
 ├── app/layout.tsx          → AuthProvider 감싸기
-└── app/page.tsx            → 각 카드에 CommentSection 삽입
+├── app/page.tsx            → 각 카드에 CommentSection 삽입
+└── vercel.json             → cleanup-comments 크론 스케줄 추가
 ```
 
 ---
@@ -195,11 +216,15 @@ Anonymous Auth를 사용하면 RLS가 유저를 식별하므로, 대부분의 CR
 
 ---
 
-## 10. 미결 사항 (TODO)
-- [ ] 댓글 신고 기능 필요 여부
-- [ ] 댓글 TTL (7일 후 자동 삭제 등)
-- [ ] 인기 댓글 정렬 (좋아요 기능)
-- [ ] 비속어 필터 수준 결정
-- [ ] 모바일에서 댓글 영역 최대 높이 결정
-- [ ] 닉네임 변경 기능 필요 여부
-- [ ] 향후 소셜 로그인 연동 계획 (linkIdentity)
+## 10. 확정된 결정사항
+
+| 항목 | 결정 | 비고 |
+|------|------|------|
+| 신고 기능 | 없음 | MVP에서 제외 |
+| 댓글 TTL | 7일 | 크론으로 자동 삭제 |
+| 댓글 정렬 | 인기 5개 (상단) + 최신순 (하단) | likes 기반 |
+| 비속어 필터 | 하드코딩 사전 | `lib/moderation.ts` 배열 |
+| 닉네임 변경 | 현재 없음 | |
+| 소셜 로그인 | 향후 계획 있음 | 현 단계 아님, `linkIdentity()` 예정 |
+| 모바일 댓글 표시 | 제한 없이 모두 표시 | max-height / 스크롤 없음 |
+| 댓글 글자 수 | 최대 500자 | |
