@@ -27,12 +27,23 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
     ogImage = `/api/og?type=${targetData.blood_type}&rank=${targetData.rank}&days=${targetData.days}`;
   }
 
+  const description = '혈액형 팀전 헌혈 독려 웹사이트';
+
   return {
     title,
-    description: '혈액형 팀전 헌혈 독려 웹사이트',
+    description,
     openGraph: {
+      title,
+      description,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
       images: [ogImage],
-    }
+    },
   };
 }
 
