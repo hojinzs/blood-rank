@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabase';
 
 export async function GET(request: Request) {
   // 인증 검증 (수동 트리거 시 사용)

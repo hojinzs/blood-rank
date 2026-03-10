@@ -45,7 +45,7 @@ function BloodCircularProgress({ days, bloodType, sizeClass = "w-24 h-24", strok
 
   return (
     <div className={`relative inline-flex items-center justify-center shrink-0 ${sizeClass}`}>
-      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+      <svg className="w-full h-full transform -rotate-90 overflow-visible" viewBox="0 0 100 100">
         <circle
           className="text-stone-200 dark:text-stone-800"
           strokeWidth={strokeWidth}
@@ -76,8 +76,24 @@ function BloodCircularProgress({ days, bloodType, sizeClass = "w-24 h-24", strok
 }
 
 export default async function Home() {
-  const { data: bloodData } = await supabase.from('blood_supply_latest').select('*').order('rank', { ascending: true });
-  
+  let { data: bloodData } = await supabase.from('blood_supply_latest').select('*').order('rank', { ascending: true });
+
+  // 데이터가 없으면 스크래핑을 트리거하고 다시 조회
+  if (!bloodData || bloodData.length === 0) {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000';
+
+    await fetch(`${baseUrl}/api/cron/scrape`, {
+      headers: process.env.CRON_SECRET
+        ? { Authorization: `Bearer ${process.env.CRON_SECRET}` }
+        : {},
+    });
+
+    const result = await supabase.from('blood_supply_latest').select('*').order('rank', { ascending: true });
+    bloodData = result.data;
+  }
+
   if (!bloodData || bloodData.length === 0) {
     return (
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-6 flex flex-col items-center justify-center">
