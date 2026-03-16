@@ -1,29 +1,76 @@
-import { supabase } from '@/lib/supabase';
-import { getTitleCopy, getCardCopy } from '@/lib/messages';
+import { hasSupabaseEnv, supabase } from '@/lib/supabase';
+import { getTitleCopy, getCardCopy, isBloodType, type BloodType } from '@/lib/messages';
 import ShareButton from '@/components/ShareButton';
 import type { Metadata } from 'next';
 
 export const revalidate = 3600;
 
-export async function generateMetadata({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }): Promise<Metadata> {
-  const resolvedSearchParams = await searchParams;
-  const typeParam = resolvedSearchParams.type as string;
+type BloodStatus = 'good' | 'ok' | 'warning' | 'critical';
 
-  const { data } = await supabase.from('blood_supply_latest').select('*').order('rank', { ascending: true });
+interface BloodSupplyRow {
+  blood_type: BloodType;
+  days: number;
+  rank: number;
+  scraped_at: string;
+  status: BloodStatus;
+  date?: string;
+}
+
+const statusColors: Record<BloodStatus, string> = {
+  good: 'text-emerald-500',
+  ok: 'text-amber-500',
+  warning: 'text-rose-400',
+  critical: 'text-red-500 animate-pulse font-bold',
+};
+
+const statusLabels: Record<BloodStatus, string> = {
+  good: '🟢 여유',
+  ok: '🟡 보통',
+  warning: '🔴 조금 위태',
+  critical: '🚨 안돼요!',
+};
+
+const loadBloodData = async (): Promise<BloodSupplyRow[] | null> => {
+  if (!supabase) {
+    return null;
+  }
+
+  const { data } = await supabase
+    .from('blood_supply_latest')
+    .select('*')
+    .order('rank', { ascending: true });
+
+  return (data as BloodSupplyRow[] | null) ?? null;
+};
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }): Promise<Metadata> {
+  if (!hasSupabaseEnv) {
+    return {
+      title: '혈부심 | 헌혈 독려 프로젝트',
+      description: '혈액형 팀전 헌혈 독려 웹사이트',
+    };
+  }
+
+  const resolvedSearchParams = await searchParams;
+  const typeParam = Array.isArray(resolvedSearchParams.type)
+    ? resolvedSearchParams.type[0]
+    : resolvedSearchParams.type;
+
+  const data = await loadBloodData();
   
   let title = '혈부심 | 헌혈 독려 프로젝트';
   let ogImage = '/api/og';
 
   if (data && data.length > 0) {
-    let targetData = data[0];
+    let targetData = data[0] as BloodSupplyRow;
     
     // URL에 type 파라미터가 있으면 그 혈액형 기준, 없으면 1위 기준
-    if (typeParam && ['A', 'B', 'O', 'AB'].includes(typeParam)) {
+    if (typeParam && isBloodType(typeParam)) {
       const found = data.find(item => item.blood_type === typeParam);
-      if (found) targetData = found;
+      if (found) targetData = found as BloodSupplyRow;
     }
 
-    title = `혈부심 | ${getTitleCopy(targetData.blood_type as any)}`;
+    title = `혈부심 | ${getTitleCopy(targetData.blood_type)}`;
     ogImage = `/api/og?type=${targetData.blood_type}&rank=${targetData.rank}&days=${targetData.days}`;
   }
 
@@ -87,13 +134,21 @@ function BloodCircularProgress({ days, bloodType, sizeClass = "w-24 h-24", strok
 }
 
 export default async function Home() {
-  let { data: bloodData } = await supabase.from('blood_supply_latest').select('*').order('rank', { ascending: true });
+  if (!hasSupabaseEnv) {
+    return (
+      <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] p-6 flex flex-col items-center justify-center">
+        <h1 className="text-3xl font-bold mb-4 text-stone-800">서비스 설정을 확인하고 있어요.</h1>
+        <p className="text-stone-500">잠시 후 다시 확인해주세요.</p>
+      </main>
+    );
+  }
+
+  let bloodData = await loadBloodData();
 
   // 데이터가 없으면 스크래핑을 트리거하고 다시 조회
   if (!bloodData || bloodData.length === 0) {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
     await fetch(`${baseUrl}/api/cron/scrape`, {
       headers: process.env.CRON_SECRET
@@ -101,8 +156,7 @@ export default async function Home() {
         : {},
     });
 
-    const result = await supabase.from('blood_supply_latest').select('*').order('rank', { ascending: true });
-    bloodData = result.data;
+    bloodData = await loadBloodData();
   }
 
   if (!bloodData || bloodData.length === 0) {
@@ -128,7 +182,7 @@ export default async function Home() {
       <header className="py-12 px-6 flex flex-col items-center justify-center bg-rose-50/50 border-b border-rose-100">
         <div className="text-rose-400 text-sm font-bold tracking-widest uppercase mb-4">Blood Rank</div>
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-stone-800 font-extrabold text-center max-w-3xl leading-tight text-balance break-keep">
-          {getTitleCopy(firstPlace.blood_type as any)}
+          {getTitleCopy(firstPlace.blood_type as BloodType)}
         </h1>
         <p className="mt-4 text-sm text-stone-500 max-w-lg text-center leading-relaxed break-keep">
           혈액형 성격설은 과학적 근거가 없습니다. 그냥 재밌잖아요 😄
@@ -173,7 +227,7 @@ export default async function Home() {
               <div className="flex flex-col justify-between w-full md:w-1/2 gap-6">
                 <div className="bg-stone-50 rounded-3xl p-6 md:p-8 flex-1 relative overflow-hidden border border-stone-100 shadow-inner">
                   <p className="text-xl md:text-2xl text-stone-700 leading-relaxed font-bold break-keep">
-                    "{getCardCopy(firstPlace.blood_type as any, 1)}"
+                    &ldquo;{getCardCopy(firstPlace.blood_type as BloodType, 1)}&rdquo;
                   </p>
                 </div>
                 
@@ -199,19 +253,6 @@ export default async function Home() {
               const cardBg = isLast ? 'bg-white border-rose-200' : 'bg-white border-stone-100';
               const cardShadow = isLast ? 'shadow-[0_8px_30px_rgb(251,113,133,0.08)]' : 'shadow-sm';
 
-              const statusColors: any = {
-                good: 'text-emerald-500',
-                ok: 'text-amber-500',
-                warning: 'text-rose-400',
-                critical: 'text-red-500 animate-pulse font-bold'
-              };
-              const statusLabels: any = {
-                good: '🟢 여유',
-                ok: '🟡 보통',
-                warning: '🔴 조금 위태',
-                critical: '🚨 안돼요!'
-              };
-
               return (
                 <div key={item.blood_type} className={`relative p-6 rounded-3xl border ${cardBg} ${cardShadow} transition-all duration-300 flex flex-col h-full hover:shadow-md hover:-translate-y-1`}>
                   {isLast && (
@@ -233,8 +274,8 @@ export default async function Home() {
                         <div className="text-3xl font-black tabular-nums tracking-tighter text-stone-800">
                           {item.days} <span className="text-sm text-stone-400 font-bold">일</span>
                         </div>
-                        <div className={`text-sm mt-0.5 font-bold ${statusColors[item.status as string] || 'text-stone-400'}`}>
-                          {statusLabels[item.status as string] || item.status}
+                        <div className={`text-sm mt-0.5 font-bold ${statusColors[item.status] || 'text-stone-400'}`}>
+                          {statusLabels[item.status] || item.status}
                         </div>
                       </div>
                     </div>
@@ -245,7 +286,7 @@ export default async function Home() {
 
                   <div className="bg-stone-50 rounded-2xl p-5 mb-6 border border-stone-100 flex-grow shadow-inner">
                     <p className="text-stone-600 text-sm leading-relaxed font-bold break-keep">
-                      "{getCardCopy(item.blood_type as any, item.rank)}"
+                      &ldquo;{getCardCopy(item.blood_type as BloodType, item.rank)}&rdquo;
                     </p>
                   </div>
 
