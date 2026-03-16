@@ -1,0 +1,95 @@
+schema_version: 1
+collected_at: 2026-03-16T07:09:30.862Z
+
+project:
+  id: PVT_kwHOAPiKdM4BR3n2
+  title: My Hobby Projects
+  url: https://github.com/users/hojinzs/projects/6
+
+status_field:
+  id: PVTSSF_lAHOAPiKdM4BR3n2zg_kZq8
+  name: Status
+  columns:
+    - id: f75ad846
+      name: Backlog
+      color: GREEN
+      inferred_role: wait
+      confidence: high
+    - id: 61e4505c
+      name: Ready
+      color: BLUE
+      inferred_role: active
+      confidence: high
+    - id: 47fc9ee4
+      name: In progress
+      color: YELLOW
+      inferred_role: active
+      confidence: high
+    - id: df73e18b
+      name: In review
+      color: PURPLE
+      inferred_role: wait
+      confidence: high
+    - id: 98236657
+      name: Done
+      color: ORANGE
+      inferred_role: terminal
+      confidence: high
+
+text_fields:
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZq0
+    name: Title
+    data_type: TITLE
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZq4
+    name: Assignees
+    data_type: ASSIGNEES
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZrA
+    name: Labels
+    data_type: LABELS
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZrE
+    name: Linked pull requests
+    data_type: LINKED_PULL_REQUESTS
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZrI
+    name: Milestone
+    data_type: MILESTONE
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZrM
+    name: Repository
+    data_type: REPOSITORY
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZrQ
+    name: Reviewers
+    data_type: REVIEWERS
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZrU
+    name: Parent issue
+    data_type: PARENT_ISSUE
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZrY
+    name: Sub-issues progress
+    data_type: SUB_ISSUES_PROGRESS
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZyw
+    name: Estimate
+    data_type: NUMBER
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZy0
+    name: Start date
+    data_type: DATE
+  - id: PVTF_lAHOAPiKdM4BR3n2zg_kZy4
+    name: Target date
+    data_type: DATE
+
+repositories:
+  - owner: hojinzs
+    name: blood-rank
+    clone_url: https://github.com/hojinzs/blood-rank.git
+
+detected_environment:
+  packageManager: npm
+  lockfile: package-lock.json
+  testCommand: null
+  buildCommand: next build
+  lintCommand: eslint
+  ciPlatform: null
+  monorepo: false
+  existingSkills:
+    []
+
+runtime:
+  agent: codex
+  agent_command: bash -lc codex app-server
