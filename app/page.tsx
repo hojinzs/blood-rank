@@ -1,11 +1,16 @@
 import { hasSupabaseEnv, supabase } from '@/lib/supabase';
 import { getTitleCopy, getCardCopy, isBloodType, type BloodType } from '@/lib/messages';
+import {
+  BLOOD_RESERVATION_URL,
+  getEmergencyMessage,
+  getReservationCtaLabel,
+  isCrisisAlert,
+  type BloodStatus,
+} from '@/lib/crisis-alert';
 import ShareButton from '@/components/ShareButton';
 import type { Metadata } from 'next';
 
 export const revalidate = 3600;
-
-type BloodStatus = 'good' | 'ok' | 'warning' | 'critical';
 
 interface BloodSupplyRow {
   blood_type: BloodType;
@@ -169,6 +174,12 @@ export default async function Home() {
   }
 
   const firstPlace = bloodData[0];
+  const firstPlaceIsCrisis = isCrisisAlert({ days: firstPlace.days, status: firstPlace.status });
+  const firstPlaceEmergencyMessage = getEmergencyMessage({
+    bloodType: firstPlace.blood_type,
+    days: firstPlace.days,
+    status: firstPlace.status,
+  });
   const collectionDate = new Intl.DateTimeFormat('ko-KR', {
     month: 'long',
     day: 'numeric',
@@ -200,9 +211,21 @@ export default async function Home() {
 
         <div className="flex flex-col gap-8">
           {/* 1위 카드 - 가로형 강조 레이아웃 */}
-          <div className="relative p-8 md:p-10 rounded-[2.5rem] bg-white border border-rose-100 shadow-[0_8px_30px_rgb(251,113,133,0.12)][0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-300">
-            <div className="absolute -top-4 -right-2 md:-right-4 bg-gradient-to-r from-rose-400 to-rose-500 text-white text-sm font-bold px-5 py-2 rounded-full shadow-lg transform rotate-3 border-[3px] border-white">
-              현재 1위 👑
+          <div
+            className={`relative p-8 md:p-10 rounded-[2.5rem] border transition-all duration-300 ${
+              firstPlaceIsCrisis
+                ? 'crisis-card bg-linear-to-br from-red-50 via-rose-50 to-white border-red-300 shadow-[0_16px_45px_rgba(239,68,68,0.22)]'
+                : 'bg-white border-rose-100 shadow-[0_8px_30px_rgba(251,113,133,0.12)]'
+            }`}
+          >
+            <div
+              className={`absolute -top-4 -right-2 md:-right-4 text-white text-sm font-bold px-5 py-2 rounded-full shadow-lg transform rotate-3 border-[3px] border-white ${
+                firstPlaceIsCrisis
+                  ? 'bg-gradient-to-r from-red-500 to-rose-500'
+                  : 'bg-gradient-to-r from-rose-400 to-rose-500'
+              }`}
+            >
+              {firstPlaceIsCrisis ? <span className="crisis-siren">🚨</span> : null} 현재 1위 👑
             </div>
             
             <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
@@ -218,27 +241,37 @@ export default async function Home() {
                   <div className="text-5xl md:text-6xl font-black tabular-nums tracking-tighter mb-2 text-stone-800">
                     {firstPlace.days} <span className="text-2xl text-stone-400 font-bold">일분</span>
                   </div>
-                  <div className={`text-lg font-bold ${firstPlace.days >= 5 ? 'text-emerald-500' : firstPlace.days >= 3 ? 'text-amber-500' : firstPlace.days >= 2 ? 'text-rose-400' : 'text-red-500 animate-pulse'}`}>
+                  <div className={`text-lg font-bold ${firstPlace.days >= 5 ? 'text-emerald-500' : firstPlace.days >= 3 ? 'text-amber-500' : firstPlace.days >= 2 ? 'text-rose-400' : 'text-red-500'}`}>
                     {firstPlace.days >= 5 ? '🟢 여유 있어요' : firstPlace.days >= 3 ? '🟡 보통이에요' : firstPlace.days >= 2 ? '🔴 조금 위태위태' : '🚨 긴급해요!'}
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col justify-between w-full md:w-1/2 gap-6">
-                <div className="bg-stone-50 rounded-3xl p-6 md:p-8 flex-1 relative overflow-hidden border border-stone-100 shadow-inner">
+                <div
+                  className={`rounded-3xl p-6 md:p-8 flex-1 relative overflow-hidden border shadow-inner ${
+                    firstPlaceIsCrisis
+                      ? 'bg-red-100/70 border-red-200'
+                      : 'bg-stone-50 border-stone-100'
+                  }`}
+                >
                   <p className="text-xl md:text-2xl text-stone-700 leading-relaxed font-bold break-keep">
-                    &ldquo;{getCardCopy(firstPlace.blood_type as BloodType, 1)}&rdquo;
+                    &ldquo;{firstPlaceEmergencyMessage ?? getCardCopy(firstPlace.blood_type as BloodType, 1)}&rdquo;
                   </p>
                 </div>
                 
                 <div className="flex gap-3 w-full">
                   <a 
-                    href="https://www.bloodinfo.net/knrcbs/bh/resv/resvBldHousStep1.do?mi=1094" 
+                    href={BLOOD_RESERVATION_URL}
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex-2 text-center bg-rose-400 hover:bg-rose-500 text-white font-bold text-lg py-4 px-6 rounded-2xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]"
+                    className={`flex-2 text-center text-white font-bold text-lg py-4 px-6 rounded-2xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] ${
+                      firstPlaceIsCrisis
+                        ? 'bg-red-500 hover:bg-red-600 crisis-button'
+                        : 'bg-rose-400 hover:bg-rose-500'
+                    }`}
                   >
-                    지금 헌혈 예약하기
+                    {getReservationCtaLabel({ days: firstPlace.days, status: firstPlace.status })}
                   </a>
                   <ShareButton bloodData={firstPlace} variant="primary" />
                 </div>
@@ -250,14 +283,34 @@ export default async function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {bloodData.slice(1).map((item) => {
               const isLast = item.rank === 4;
-              const cardBg = isLast ? 'bg-white border-rose-200' : 'bg-white border-stone-100';
-              const cardShadow = isLast ? 'shadow-[0_8px_30px_rgb(251,113,133,0.08)]' : 'shadow-sm';
+              const isCrisis = isCrisisAlert({ days: item.days, status: item.status });
+              const emergencyMessage = getEmergencyMessage({
+                bloodType: item.blood_type,
+                days: item.days,
+                status: item.status,
+              });
+              const cardBg = isCrisis
+                ? 'bg-linear-to-br from-red-50 via-rose-50 to-white border-red-300'
+                : isLast
+                  ? 'bg-white border-rose-200'
+                  : 'bg-white border-stone-100';
+              const cardShadow = isCrisis
+                ? 'shadow-[0_16px_45px_rgba(239,68,68,0.18)] crisis-card'
+                : isLast
+                  ? 'shadow-[0_8px_30px_rgba(251,113,133,0.08)]'
+                  : 'shadow-sm';
 
               return (
                 <div key={item.blood_type} className={`relative p-6 rounded-3xl border ${cardBg} ${cardShadow} transition-all duration-300 flex flex-col h-full hover:shadow-md hover:-translate-y-1`}>
-                  {isLast && (
-                     <div className="absolute -top-3 -right-2 bg-rose-400 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md transform -rotate-3 border-2 border-white">
-                      꼴찌 위기 🚨
+                  {(isLast || isCrisis) && (
+                     <div className={`absolute -top-3 -right-2 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md transform -rotate-3 border-2 border-white ${isCrisis ? 'bg-red-500' : 'bg-rose-400'}`}>
+                      {isCrisis ? (
+                        <>
+                          <span className="crisis-siren">🚨</span> 위기 경보
+                        </>
+                      ) : (
+                        '꼴찌 위기 🚨'
+                      )}
                     </div>
                   )}
                   
@@ -284,20 +337,24 @@ export default async function Home() {
                     </div>
                   </div>
 
-                  <div className="bg-stone-50 rounded-2xl p-5 mb-6 border border-stone-100 flex-grow shadow-inner">
+                  <div className={`rounded-2xl p-5 mb-6 border flex-grow shadow-inner ${isCrisis ? 'bg-red-100/70 border-red-200' : 'bg-stone-50 border-stone-100'}`}>
                     <p className="text-stone-600 text-sm leading-relaxed font-bold break-keep">
-                      &ldquo;{getCardCopy(item.blood_type as BloodType, item.rank)}&rdquo;
+                      &ldquo;{emergencyMessage ?? getCardCopy(item.blood_type as BloodType, item.rank)}&rdquo;
                     </p>
                   </div>
 
                   <div className="flex gap-2 mt-auto">
                     <a 
-                      href="https://www.bloodinfo.net/knrcbs/bh/resv/resvBldHousStep1.do?mi=1094" 
+                      href={BLOOD_RESERVATION_URL}
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex-1 text-center bg-stone-100 hover:bg-stone-200:bg-stone-600 text-stone-600 text-sm font-bold py-3 px-4 rounded-xl transition-colors ring-1 ring-stone-200"
+                      className={`flex-1 text-center text-sm font-bold py-3 px-4 rounded-xl transition-colors ring-1 ${
+                        isCrisis
+                          ? 'bg-red-500 hover:bg-red-600 text-white ring-red-300 crisis-button'
+                          : 'bg-stone-100 hover:bg-stone-200 text-stone-600 ring-stone-200'
+                      }`}
                     >
-                      예약하기
+                      {isCrisis ? '긴급 헌혈 예약하기' : '예약하기'}
                     </a>
                     <ShareButton bloodData={item} variant="secondary" />
                   </div>
