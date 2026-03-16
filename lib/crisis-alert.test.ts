@@ -21,6 +21,13 @@ test('sub-one-day supply uses same-day depletion copy', () => {
   );
 });
 
+test('critical status with two or more days avoids tomorrow depletion copy', () => {
+  assert.equal(
+    getEmergencyMessage({ bloodType: 'AB', days: 2.4, status: 'critical' }),
+    '🚨 AB형 보유량 2.4일. 위기 단계가 계속되고 있습니다.',
+  );
+});
+
 test('non-crisis supply keeps normal reservation CTA', () => {
   assert.equal(getReservationCtaLabel({ days: 3.5, status: 'ok' }), '지금 헌혈 예약하기');
 });

@@ -54,3 +54,10 @@ body {
 .crisis-button {
   box-shadow: 0 12px 28px rgba(239, 68, 68, 0.22);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .crisis-siren,
+  .crisis-card {
+    animation: none;
+  }
+}

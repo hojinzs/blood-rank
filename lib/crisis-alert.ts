@@ -27,7 +27,12 @@ export const getEmergencyMessage = ({ bloodType, days, status }: CrisisAlertInpu
     return null;
   }
 
-  const depletionCopy = days < 1 ? '오늘 안에 바닥날 수 있습니다.' : '내일이면 바닥입니다.';
+  const depletionCopy =
+    days < 1
+      ? '오늘 안에 바닥날 수 있습니다.'
+      : days < 2
+        ? '내일이면 바닥입니다.'
+        : '위기 단계가 계속되고 있습니다.';
 
   return `🚨 ${bloodType}형 보유량 ${formatDays(days)}일. ${depletionCopy}`;
 };

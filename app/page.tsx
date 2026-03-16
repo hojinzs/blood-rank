@@ -265,7 +265,7 @@ export default async function Home() {
                     href={BLOOD_RESERVATION_URL}
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className={`flex-2 text-center text-white font-bold text-lg py-4 px-6 rounded-2xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] ${
+                    className={`flex-[2] text-center text-white font-bold text-lg py-4 px-6 rounded-2xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] ${
                       firstPlaceIsCrisis
                         ? 'bg-red-500 hover:bg-red-600 crisis-button'
                         : 'bg-rose-400 hover:bg-rose-500'
