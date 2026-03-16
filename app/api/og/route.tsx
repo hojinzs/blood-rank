@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { getCardCopy } from '@/lib/messages';
+import { getCardCopy, isBloodType, type BloodType } from '@/lib/messages';
 
 export const runtime = 'edge';
 
@@ -8,7 +8,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     
     // ?type=O&rank=4&days=2.8
-    const type = searchParams.get('type') || 'O';
+    const typeParam = searchParams.get('type') || 'O';
+    const type: BloodType = isBloodType(typeParam) ? typeParam : 'O';
     const rank = parseInt(searchParams.get('rank') || '4', 10);
     const days = searchParams.get('days') || '2.8';
 
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
     if (type === 'O') bgColor = '#f59e0b'; // amber-500
     if (type === 'AB') bgColor = '#a855f7'; // purple-500
 
-    const copy = getCardCopy(type as any, rank);
+    const copy = getCardCopy(type, rank);
 
     return new ImageResponse(
       (
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
             </div>
 
             <div style={{ fontSize: 45, fontWeight: 700, textAlign: 'center', lineHeight: 1.4, maxWidth: '90%', wordBreak: 'keep-all' }}>
-              "{copy}"
+              &ldquo;{copy}&rdquo;
             </div>
           </div>
         </div>
@@ -60,8 +61,8 @@ export async function GET(request: Request) {
         height: 630,
       }
     );
-  } catch (e: any) {
-    return new Response(`Failed to generate the image`, {
+  } catch {
+    return new Response('Failed to generate the image', {
       status: 500,
     });
   }

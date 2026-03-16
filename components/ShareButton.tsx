@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { getCardCopy } from '@/lib/messages';
+import { getCardCopy, type BloodType } from '@/lib/messages';
 
 interface BloodDataProps {
-  blood_type: string;
+  blood_type: BloodType;
   days: number;
   rank: number;
   status: string;
-  date: string;
-  scraped_at: string;
+  date?: string;
+  scraped_at?: string;
 }
 
 export default function ShareButton({ bloodData, variant = 'secondary' }: { bloodData: BloodDataProps, variant?: 'primary' | 'secondary' }) {
@@ -41,7 +41,7 @@ export default function ShareButton({ bloodData, variant = 'secondary' }: { bloo
   };
 
   const handleTwitterShare = () => {
-    const copy = getCardCopy(bloodData.blood_type as any, bloodData.rank);
+    const copy = getCardCopy(bloodData.blood_type, bloodData.rank);
     const text = encodeURIComponent(`[혈부심] ${bloodData.blood_type}형 현재 ${bloodData.rank}위\n\n"${copy}"\n\n`);
     const url = encodeURIComponent(shareUrl);
     window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
@@ -49,7 +49,7 @@ export default function ShareButton({ bloodData, variant = 'secondary' }: { bloo
   };
 
   const handleThreadsShare = () => {
-    const copy = getCardCopy(bloodData.blood_type as any, bloodData.rank);
+    const copy = getCardCopy(bloodData.blood_type, bloodData.rank);
     const text = encodeURIComponent(`[혈부심] ${bloodData.blood_type}형 현재 ${bloodData.rank}위\n\n"${copy}"\n\n`);
     const url = encodeURIComponent(shareUrl);
     window.open(`https://threads.net/intent/post?text=${text}&url=${url}`, '_blank');
@@ -58,7 +58,7 @@ export default function ShareButton({ bloodData, variant = 'secondary' }: { bloo
 
   const handleKakaoShare = () => {
     if (typeof window !== 'undefined' && window.Kakao && window.Kakao.isInitialized()) {
-      const copy = getCardCopy(bloodData.blood_type as any, bloodData.rank);
+      const copy = getCardCopy(bloodData.blood_type, bloodData.rank);
       
       window.Kakao.Share.sendDefault({
         objectType: 'feed',

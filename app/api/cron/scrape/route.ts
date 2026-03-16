@@ -3,6 +3,13 @@ import * as cheerio from 'cheerio';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
 
 export async function GET(request: Request) {
+  if (!supabase) {
+    return NextResponse.json(
+      { success: false, error: 'Supabase admin client is not configured.' },
+      { status: 500 }
+    );
+  }
+
   // 인증 검증 (수동 트리거 시 사용)
   const authHeader = request.headers.get('authorization');
   if (
@@ -106,6 +113,10 @@ export async function GET(request: Request) {
       status: getStatus(item.days),
     }));
 
+    if (!supabase) {
+      throw new Error('Supabase admin client is not configured');
+    }
+
     const { error } = await supabase
       .from('blood_supply_daily')
       .upsert(insertData, { onConflict: 'date, blood_type' });
@@ -117,8 +128,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, count: insertData.length, data: insertData });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Scraping Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
